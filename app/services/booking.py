@@ -30,7 +30,7 @@ def _get_groq() -> Groq:
     return _groq_client
 
 
-def detect_booking(user_message: str) -> dict:
+def detect_booking(user_message: str, chat_history: list[dict[str, str]] | None = None) -> dict:
     """
     Use the LLM to detect interview booking intent and extract structured data.
 
@@ -44,9 +44,9 @@ def detect_booking(user_message: str) -> dict:
         - {"booking": null}
     """
     client = _get_groq()
-    
+
     history_text = ""
-    
+
     if chat_history:
         recent = chat_history[-8:]  # last 4 turns
         history_text = "\n".join(f"{m['role']}: {m['content']}" for m in recent)
@@ -61,7 +61,7 @@ def detect_booking(user_message: str) -> dict:
         model=settings.GROQ_MODEL,
         messages=[
             {"role": "system", "content": _BOOKING_SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
+            {"role": "user", "content": user_content},
         ],
         temperature=0.0,
         max_tokens=200,
