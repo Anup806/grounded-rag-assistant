@@ -6,6 +6,7 @@ qdrant-client==1.11.3
 redis==5.1.1
 sentence-transformers==3.1.1
 groq==0.11.0
+httpx<0.28
 pymupdf==1.24.12
 nltk==3.9.1
 pydantic-settings==2.5.2
