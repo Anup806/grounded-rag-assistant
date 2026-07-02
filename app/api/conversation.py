@@ -50,8 +50,12 @@ async def chat_message(
     # Auto-generate session_id when not supplied by the caller
     session_id: str = request.session_id or str(uuid.uuid4())
 
+    # Load history once — needed by booking detection to merge fields given
+    # across multiple turns, and reused below for the RAG branch.
+    existing_history: list[dict[str, str]] = get_chat_history(session_id)
+
     # ── Booking detection first ──────────────────────────────────────────────
-    booking_result: dict = detect_booking(request.message)
+    booking_result: dict = detect_booking(request.message, chat_history=existing_history)
     booking_confirmed: dict | None = None
 
     if booking_result.get("booking") is True:
