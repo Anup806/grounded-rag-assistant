@@ -48,3 +48,12 @@ def save_booking(
 def get_all_bookings(db: Session) -> list[Booking]:
     """Return all interview bookings from the database."""
     return db.query(Booking).all()
+
+
+def clear_bookings_by_session_id(db: Session, session_id: str) -> int:
+    """Delete interview bookings for a specific session from the database."""
+    deleted_count = (
+        db.query(Booking).filter(Booking.session_id == session_id).delete(synchronize_session=False)
+    )
+    db.commit()
+    return deleted_count
