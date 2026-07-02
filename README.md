@@ -34,15 +34,15 @@ A backend system with two REST APIs built using FastAPI:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/palm-mind-rag.git
-cd palm-mind-rag
+git clone https://github.com/Anup806/Backend-RAG-with-Two-RESTAPI
+cd Backend-RAG-with-Two-RESTAPI
 ```
 
 ### 2. Create and activate a virtual environment
 
 ```bash
-python -m venv venv
-venv\Scripts\activate
+python -m venv .venv
+.venv\Scripts\activate
 ```
 
 ### 3. Install dependencies
@@ -196,9 +196,13 @@ List all interview bookings stored in the database.
 
 #### `DELETE /chat/bookings/{session_id}`
 
-Delete the interview booking records stored in SQLite for a specific `session_id`.
+Delete the interview booking(s) for one specific `session_id` from SQLite.
 
-Use this when you want to remove one saved interview booking without clearing all bookings.
+Example:
+
+```http
+DELETE /chat/bookings/abc-123-...
+```
 
 ---
 
