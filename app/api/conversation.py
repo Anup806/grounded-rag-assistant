@@ -5,7 +5,7 @@ from qdrant_client.http.exceptions import ResponseHandlingException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.db.crud import get_all_bookings, save_booking
+from app.db.crud import clear_bookings_by_session_id, get_all_bookings, save_booking
 from app.db.database import get_db
 from app.services.booking import detect_booking
 from app.services.memory import append_to_history, clear_history, get_chat_history
@@ -159,4 +159,15 @@ async def list_bookings(db: Session = Depends(get_db)) -> dict:
             }
             for b in bookings
         ],
+    }
+
+
+@router.delete("/bookings/{session_id}", summary="Delete bookings for a session")
+async def clear_bookings(session_id: str, db: Session = Depends(get_db)) -> dict:
+    """Remove interview bookings stored in SQLite for one session only."""
+    deleted_count = clear_bookings_by_session_id(db, session_id)
+    return {
+        "message": f"Interview bookings for session '{session_id}' were deleted.",
+        "session_id": session_id,
+        "deleted_count": deleted_count,
     }
