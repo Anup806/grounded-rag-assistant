@@ -77,7 +77,7 @@ Verify both containers are running:
 docker ps
 ```
 
-You should see `palm_qdrant` and `palm_redis` both with status `Up`.
+You should see `backend_qdrant` and `backend_redis` both with status `Up`.
 
 ---
 
@@ -194,6 +194,12 @@ Clear conversation history for a session.
 
 List all interview bookings stored in the database.
 
+#### `DELETE /chat/bookings/{session_id}`
+
+Delete the interview booking records stored in SQLite for a specific `session_id`.
+
+Use this when you want to remove one saved interview booking without clearing all bookings.
+
 ---
 
 ## Chunking Strategies
@@ -208,7 +214,7 @@ List all interview bookings stored in the database.
 ## Project Structure
 
 ```
-palm_mind_task/
+Backend RAG with Two FastAPI/
 ├── app/
 │   ├── main.py                  # FastAPI app, startup tasks, router registration
 │   ├── api/
