@@ -7,19 +7,33 @@ from app.core.config import settings
 
 _groq_client: Groq | None = None
 
-_BOOKING_SYSTEM_PROMPT = """You are a booking extraction assistant. Analyze the user message for interview booking intent.
+# NOTE: this prompt deliberately does NOT see conversation history, and does
+# NOT try to decide "is the booking complete" — it only extracts whatever
+# fields are explicitly present in the single message it is given. State
+# accumulation and completeness checks are handled deterministically in
+# Python (see app/services/booking_state.py + conversation.py), not by the
+# LLM. This avoids the model anchoring on its own previous replies when
+# history is replayed back into its context turn after turn.
+_EXTRACTION_SYSTEM_PROMPT = """You are a slot-extraction assistant for interview booking. \
+Look ONLY at the message you are given — you have no memory of earlier messages, that is \
+handled elsewhere. Extract any of these four fields if explicitly present in THIS message: \
+name, email, date, time.
 
-RULES:
-1. If the user wants to book an interview AND provides ALL four fields (name, email, date, time), respond ONLY with:
-   {"booking": true, "name": "...", "email": "...", "date": "YYYY-MM-DD", "time": "HH:MM"}
+Also set "intent" to true if this message expresses a wish to book/schedule an interview, \
+OR if it supplies booking-related info (name/email/date/time) even without saying "book" \
+explicitly. Otherwise set "intent" to false.
 
-2. If the user wants to book but is MISSING one or more fields, respond ONLY with:
-   {"booking": false, "missing": ["field1", "field2"]}
+Respond ONLY with raw JSON in exactly this shape, using null for any field not present in \
+THIS message:
+{"intent": true, "name": null, "email": null, "date": "YYYY-MM-DD", "time": "HH:MM"}
 
-3. If there is NO booking intent at all, respond ONLY with:
-   {"booking": null}
-
-Return ONLY raw JSON. No explanation, no markdown, no code fences."""
+Rules:
+- Convert dates to YYYY-MM-DD and times to 24-hour HH:MM.
+- If a date is mentioned without a year, still convert what you can (month/day) and leave \
+the year out only if truly ambiguous — do not discard the whole field over a missing year.
+- If nothing booking-related is present, respond:
+  {"intent": false, "name": null, "email": null, "date": null, "time": null}
+- Return ONLY raw JSON. No explanation, no markdown, no code fences."""
 
 
 def _get_groq() -> Groq:
@@ -30,50 +44,41 @@ def _get_groq() -> Groq:
     return _groq_client
 
 
-def detect_booking(user_message: str, chat_history: list[dict[str, str]] | None = None) -> dict:
+def extract_booking_fields(user_message: str) -> dict:
     """
-    Use the LLM to detect interview booking intent and extract structured data.
+    Extract booking-related fields from a SINGLE message only — no history.
 
     Args:
-        user_message: Raw message text from the user.
+        user_message: The current turn's raw message text.
 
     Returns:
-        Dict with one of three shapes:
-        - {"booking": true, "name": ..., "email": ..., "date": ..., "time": ...}
-        - {"booking": false, "missing": [...]}
-        - {"booking": null}
+        Dict: {"intent": bool, "name": str|None, "email": str|None,
+               "date": str|None, "time": str|None}
     """
     client = _get_groq()
-
-    history_text = ""
-
-    if chat_history:
-        recent = chat_history[-8:]  # last 4 turns
-        history_text = "\n".join(f"{m['role']}: {m['content']}" for m in recent)
-
-    user_content = (
-        f"Conversation history:\n{history_text}\n\nLatest message: {user_message}"
-        if history_text
-        else user_message
-    )
-
     response = client.chat.completions.create(
         model=settings.GROQ_MODEL,
         messages=[
-            {"role": "system", "content": _BOOKING_SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
+            {"role": "system", "content": _EXTRACTION_SYSTEM_PROMPT},
+            {"role": "user", "content": user_message},
         ],
         temperature=0.0,
-        max_tokens=200,
+        max_tokens=150,
     )
 
     raw: str = response.choices[0].message.content.strip()
-
-    # Strip markdown code fences if the model adds them despite instructions
     raw = re.sub(r"```json|```", "", raw).strip()
 
     try:
-        return json.loads(raw)
+        result: dict = json.loads(raw)
     except json.JSONDecodeError:
-        # Safe fallback — treat as no booking intent
-        return {"booking": None}
+        result = {}
+
+    # Defensive defaults so callers never hit a KeyError
+    return {
+        "intent": bool(result.get("intent", False)),
+        "name": result.get("name") or None,
+        "email": result.get("email") or None,
+        "date": result.get("date") or None,
+        "time": result.get("time") or None,
+    }
