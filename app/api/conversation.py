@@ -7,9 +7,16 @@ from sqlalchemy.orm import Session
 
 from app.db.crud import clear_bookings_by_session_id, get_all_bookings, save_booking
 from app.db.database import get_db
-from app.services.booking import detect_booking
+from app.services.booking import extract_booking_fields
+from app.services.booking_state import (
+    clear_pending_booking,
+    get_pending_booking,
+    save_pending_booking,
+)
 from app.services.memory import append_to_history, clear_history, get_chat_history
 from app.services.rag import generate_rag_response
+
+_BOOKING_FIELDS: tuple[str, ...] = ("name", "email", "date", "time")
 
 router = APIRouter(prefix="/chat", tags=["Conversational RAG"])
 
@@ -50,44 +57,54 @@ async def chat_message(
     # Auto-generate session_id when not supplied by the caller
     session_id: str = request.session_id or str(uuid.uuid4())
 
-    # Load history once — needed by booking detection to merge fields given
-    # across multiple turns, and reused below for the RAG branch.
-    existing_history: list[dict[str, str]] = get_chat_history(session_id)
-
     # ── Booking detection first ──────────────────────────────────────────────
-    booking_result: dict = detect_booking(request.message, chat_history=existing_history)
+    # The LLM extracts fields from ONLY this message (no history replay —
+    # that was causing the model to anchor on its own previous "still need"
+    # replies). Python merges the result into whatever was already collected
+    # for this session and deterministically checks completeness.
+    extracted: dict = extract_booking_fields(request.message)
+    pending: dict[str, str | None] = get_pending_booking(session_id)
+
+    has_new_field = any(extracted[f] for f in _BOOKING_FIELDS)
+    has_existing_progress = any(pending[f] for f in _BOOKING_FIELDS)
+
     booking_confirmed: dict | None = None
 
-    if booking_result.get("booking") is True:
-        # All fields present — save and confirm
-        booking = save_booking(
-            db=db,
-            session_id=session_id,
-            name=booking_result["name"],
-            email=booking_result["email"],
-            date=booking_result["date"],
-            time=booking_result["time"],
-        )
-        response_text = (
-            f"Interview booked successfully!\n"
-            f"Name:  {booking_result['name']}\n"
-            f"Email: {booking_result['email']}\n"
-            f"Date:  {booking_result['date']}\n"
-            f"Time:  {booking_result['time']}\n"
-            f"Booking ID: {booking.id}"
-        )
-        booking_confirmed = {
-            "id": booking.id,
-            **{k: booking_result[k] for k in ("name", "email", "date", "time")},
+    if extracted["intent"] or has_new_field or has_existing_progress:
+        # Merge: a newly-extracted field overwrites/fills the pending slot;
+        # otherwise keep whatever was already collected.
+        merged: dict[str, str | None] = {
+            field: extracted[field] or pending[field] for field in _BOOKING_FIELDS
         }
+        missing: list[str] = [f for f in _BOOKING_FIELDS if not merged[f]]
 
-    elif booking_result.get("booking") is False:
-        # Partial booking — prompt for missing fields
-        missing: list[str] = booking_result.get("missing", [])
-        response_text = (
-            f"To book an interview I still need: {', '.join(missing)}. "
-            "Please provide the missing information."
-        )
+        if not missing:
+            # All four fields present — save and confirm
+            booking = save_booking(
+                db=db,
+                session_id=session_id,
+                name=merged["name"],
+                email=merged["email"],
+                date=merged["date"],
+                time=merged["time"],
+            )
+            clear_pending_booking(session_id)
+            response_text = (
+                f"Interview booked successfully!\n"
+                f"Name:  {merged['name']}\n"
+                f"Email: {merged['email']}\n"
+                f"Date:  {merged['date']}\n"
+                f"Time:  {merged['time']}\n"
+                f"Booking ID: {booking.id}"
+            )
+            booking_confirmed = {"id": booking.id, **merged}
+        else:
+            # Still incomplete — persist progress and ask for what's left
+            save_pending_booking(session_id, merged)
+            response_text = (
+                f"To book an interview I still need: {', '.join(missing)}. "
+                "Please provide the missing information."
+            )
 
     else:
         # ── Normal RAG query ─────────────────────────────────────────────────
