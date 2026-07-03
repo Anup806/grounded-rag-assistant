@@ -231,6 +231,7 @@ Backend RAG with Two FastAPI/
 │   │   ├── vector_store.py      # Qdrant store and search
 │   │   ├── memory.py            # Redis chat history manager
 │   │   ├── rag.py               # Custom RAG pipeline (no RetrievalQAChain)
+│   │   ├── booking_state.py     # Booking flow state tracking
 │   │   └── booking.py           # LLM-based booking detection and extraction
 │   ├── db/
 │   │   ├── database.py          # SQLite engine and session factory
