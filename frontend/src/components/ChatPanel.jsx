@@ -68,7 +68,7 @@ export default function ChatPanel({ sessionId, onSessionChange }) {
         <h2>Conversational RAG</h2>
         <div className="panel-header-actions">
           <span className="session-pill">
-            {sessionId ? `Session: ${sessionId.slice(0, 8)}…` : 'No session yet'}
+            {sessionId ? `Session: ${sessionId}` : 'No session yet'}
           </span>
           <button type="button" onClick={handleClear}>Clear</button>
         </div>
