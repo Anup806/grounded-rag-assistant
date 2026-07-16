@@ -8,6 +8,7 @@ from app.api import conversation, ingestion
 from app.db.database import create_tables
 from app.services.vector_store import ensure_collection
 
+from fastapi.middleware.cors import CORSMiddleware  
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,14 @@ app = FastAPI(
     ),
     version="1.0.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(ingestion.router)
