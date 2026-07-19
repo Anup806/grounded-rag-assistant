@@ -35,7 +35,10 @@ export default function ChatPanel({ sessionId, onSessionChange }) {
 
     try {
       const data = await sendMessage(sessionId, text);
-      setMessages((prev) => [...prev, { role: 'assistant', content: data.response }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: data.response, sources: data.sources || [] },
+      ]);
       if (!sessionId) onSessionChange(data.session_id); // first message: capture the new session
       if (data.booking) setLastBooking(data.booking);
     } catch (err) {
@@ -91,6 +94,22 @@ export default function ChatPanel({ sessionId, onSessionChange }) {
           <div key={idx} className={`message message-${msg.role} ${msg.failed ? 'message-failed' : ''}`}>
             <span className="message-role">{msg.failed ? `${msg.role} · failed to send` : msg.role}</span>
             <p>{msg.content}</p>
+            {/* Redis-backed history reloaded after a refresh has no sources attached
+                (see memory.py — only role/content are persisted), so this only
+                ever appears for replies received in the current browser session. */}
+            {msg.role === 'assistant' && msg.sources?.length > 0 && (
+              <div className="sources-row">
+                {msg.sources.map((s) => (
+                  <span
+                    key={s.filename}
+                    className="source-chip"
+                    title={`${s.snippet} (similarity ${Math.round(s.score * 100)}%)`}
+                  >
+                    {s.filename}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {loading && <div className="message message-assistant message-pending">Thinking…</div>}
