@@ -69,6 +69,9 @@ async def chat_message(
     has_existing_progress = any(pending[f] for f in _BOOKING_FIELDS)
 
     booking_confirmed: dict | None = None
+    # Citations only ever come from an actual RAG lookup — a booking-flow
+    # turn (confirmed or still collecting fields) never has document sources.
+    sources: list[dict] = []
 
     if extracted["intent"] or has_new_field:
         # Merge: a newly-extracted field overwrites/fills the pending slot;
@@ -119,6 +122,7 @@ async def chat_message(
                 detail="Qdrant is unavailable. Start the vector database and try again.",
             ) from exc
         response_text = rag_result["answer"]
+        sources = rag_result["sources"]
 
     # Persist this turn to Redis
     append_to_history(session_id, request.message, response_text)
@@ -127,6 +131,7 @@ async def chat_message(
         "session_id": session_id,
         "response": response_text,
         "booking": booking_confirmed,
+        "sources": sources,
     }
 
 
