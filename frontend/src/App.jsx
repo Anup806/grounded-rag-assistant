@@ -19,7 +19,7 @@ export default function App() {
     <main className="page-shell">
       <section className="hero hero-compact">
         <div className="eyebrow-row">
-          <div className="eyebrow">Backend-RAG-with-Two-RESTAPI</div>
+          <div className="eyebrow">RAG-with-Two-RESTAPI</div>
           <ConnectionStatus />
         </div>
         <h1>RAG Console</h1>
