@@ -1,6 +1,10 @@
 # Grounded Rag Assistant with Two REST APIs
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A full-stack Retrieval-Augmented Generation (RAG) system: a FastAPI backend exposing two REST APIs (document ingestion and conversational RAG with LLM-powered interview booking), and a React frontend that drives every endpoint.
+
+Personal portfolio project, built for learning and demonstration. Feedback and forks welcome.
 
 ---
 
@@ -289,6 +293,7 @@ project-root/
 ├── .env.example
 ├── .gitignore
 ├── docker-compose.yml
+├── LICENSE                            # MIT
 └── README.md
 ```
 
@@ -306,5 +311,13 @@ This builds and starts all four services: `qdrant`, `redis`, `backend` (port 800
 docker compose down        # stop everything
 docker compose down -v     # also wipe Qdrant vectors and Redis sessions
 ```
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE) for the full text.
+
+In short: you're free to use, copy, modify, and distribute this code, including commercially, as long as the original copyright notice is kept. It's provided as-is, with no warranty, and it's a portfolio/learning project rather than a production-hardened system — there's no authentication layer, and no automated test suite yet.
 
 ---
