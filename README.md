@@ -8,6 +8,13 @@ Personal portfolio project, built for learning and demonstration. Feedback and f
 
 ---
 
+
+## Demo
+
+▶ [Watch the demo](https://youtu.be/_uKX9vYBv1w)
+
+---
+
 ## Architecture
 
 ```mermaid
